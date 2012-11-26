@@ -5,7 +5,7 @@ START-INFO-DIR-ENTRY
 * Ld: (ld).                       The GNU linker.
 END-INFO-DIR-ENTRY
 
-   This file documents the GNU linker LD (GNU Binutils) version 2.21.90.
+   This file documents the GNU linker LD (GNU Binutils) version 2.23.
 
    Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009 Free
@@ -24,7 +24,7 @@ File: ld.info,  Node: Top,  Next: Overview,  Up: (dir)
 LD
 **
 
-This file documents the GNU linker ld (GNU Binutils) version 2.21.90.
+This file documents the GNU linker ld (GNU Binutils) version 2.23.
 
    This document is distributed under the terms of the GNU Free
 Documentation License version 1.3.  A copy of the license is included
@@ -2755,12 +2755,13 @@ the symbol and place it into the symbol table with a global scope.
 * Menu:
 
 * Simple Assignments::		Simple Assignments
+* HIDDEN::			HIDDEN
 * PROVIDE::			PROVIDE
 * PROVIDE_HIDDEN::		PROVIDE_HIDDEN
 * Source Code Reference::	How to use a linker script defined symbol in source code
 
 
-File: ld.info,  Node: Simple Assignments,  Next: PROVIDE,  Up: Assignments
+File: ld.info,  Node: Simple Assignments,  Next: HIDDEN,  Up: Assignments
 
 3.5.1 Simple Assignments
 ------------------------
@@ -2816,9 +2817,35 @@ address following the `.text' output section aligned upward to a 4 byte
 boundary.
 
 
-File: ld.info,  Node: PROVIDE,  Next: PROVIDE_HIDDEN,  Prev: Simple Assignments,  Up: Assignments
+File: ld.info,  Node: HIDDEN,  Next: PROVIDE,  Prev: Simple Assignments,  Up: Assignments
 
-3.5.2 PROVIDE
+3.5.2 HIDDEN
+------------
+
+For ELF targeted ports, define a symbol that will be hidden and won't be
+exported.  The syntax is `HIDDEN(SYMBOL = EXPRESSION)'.
+
+   Here is the example from *Note Simple Assignments::, rewritten to use
+`HIDDEN':
+
+     HIDDEN(floating_point = 0);
+     SECTIONS
+     {
+       .text :
+         {
+           *(.text)
+           HIDDEN(_etext = .);
+         }
+       HIDDEN(_bdata = (. + 3) & ~ 3);
+       .data : { *(.data) }
+     }
+   In this case none of the three symbols will be visible outside this
+module.
+
+
+File: ld.info,  Node: PROVIDE,  Next: PROVIDE_HIDDEN,  Prev: HIDDEN,  Up: Assignments
+
+3.5.3 PROVIDE
 -------------
 
 In some cases, it is desirable for a linker script to define a symbol
@@ -2850,7 +2877,7 @@ will use the definition in the linker script.
 
 File: ld.info,  Node: PROVIDE_HIDDEN,  Next: Source Code Reference,  Prev: PROVIDE,  Up: Assignments
 
-3.5.3 PROVIDE_HIDDEN
+3.5.4 PROVIDE_HIDDEN
 --------------------
 
 Similar to `PROVIDE'.  For ELF targeted ports, the symbol will be
@@ -2859,7 +2886,7 @@ hidden and won't be exported.
 
 File: ld.info,  Node: Source Code Reference,  Prev: PROVIDE_HIDDEN,  Up: Assignments
 
-3.5.4 Source Code Reference
+3.5.5 Source Code Reference
 ---------------------------
 
 Accessing a linker script defined variable from source code is not
@@ -3328,6 +3355,9 @@ as nested sorting command.
 
    If the section sorting command in linker script is nested, the
 command line option will be ignored.
+
+   `SORT_NONE' disables section sorting by ignoring the command line
+section sorting option.
 
    If you ever get confused about where input sections are going, use
 the `-M' linker option to generate a map file.  The map file shows
@@ -4441,7 +4471,7 @@ as well as section flag.
 
    If an orphaned section's name is representable as a C identifier then
 the linker will automatically *note PROVIDE:: two symbols:
-__start_SECNAME and __end_SECNAME, where SECNAME is the name of the
+__start_SECNAME and __stop_SECNAME, where SECNAME is the name of the
 section.  These indicate the start address and end address of the
 orphaned section respectively.  Note: most section names are not
 representable as C identifiers because they contain a `.' character.
@@ -5516,15 +5546,51 @@ File: ld.info,  Node: PowerPC64 ELF64,  Next: SPU ELF,  Prev: PowerPC ELF32,  Up
      disable the optimization.
 
 `--no-multi-toc'
-     By default, PowerPC64 GCC generates code for a TOC model where TOC
-     entries are accessed with a 16-bit offset from r2.  This limits the
-     total TOC size to 64K.  PowerPC64 `ld' extends this limit by
-     grouping code sections such that each group uses less than 64K for
-     its TOC entries, then inserts r2 adjusting stubs between
-     inter-group calls.  `ld' does not split apart input sections, so
-     cannot help if a single input file has a `.toc' section that
-     exceeds 64K, most likely from linking multiple files with `ld -r'.
-     Use this option to turn off this feature.
+     If given any toc option besides `-mcmodel=medium' or
+     `-mcmodel=large', PowerPC64 GCC generates code for a TOC model
+     where TOC entries are accessed with a 16-bit offset from r2.  This
+     limits the total TOC size to 64K.  PowerPC64 `ld' extends this
+     limit by grouping code sections such that each group uses less
+     than 64K for its TOC entries, then inserts r2 adjusting stubs
+     between inter-group calls.  `ld' does not split apart input
+     sections, so cannot help if a single input file has a `.toc'
+     section that exceeds 64K, most likely from linking multiple files
+     with `ld -r'.  Use this option to turn off this feature.
+
+`--no-toc-sort'
+     By default, `ld' sorts TOC sections so that those whose file
+     happens to have a section called `.init' or `.fini' are placed
+     first, followed by TOC sections referenced by code generated with
+     PowerPC64 gcc's `-mcmodel=small', and lastly TOC sections
+     referenced only by code generated with PowerPC64 gcc's
+     `-mcmodel=medium' or `-mcmodel=large' options.  Doing this results
+     in better TOC grouping for multi-TOC.  Use this option to turn off
+     this feature.
+
+`--plt-align'
+`--no-plt-align'
+     Use these options to control whether individual PLT call stubs are
+     aligned to a 32-byte boundary, or to the specified power of two
+     boundary when using `--plt-align='.  By default PLT call stubs are
+     packed tightly.
+
+`--plt-static-chain'
+`--no-plt-static-chain'
+     Use these options to control whether PLT call stubs load the static
+     chain pointer (r11).  `ld' defaults to not loading the static
+     chain since there is never any need to do so on a PLT call.
+
+`--plt-thread-safe'
+`--no-thread-safe'
+     With power7's weakly ordered memory model, it is possible when
+     using lazy binding for ld.so to update a plt entry in one thread
+     and have another thread see the individual plt entry words update
+     in the wrong order, despite ld.so carefully writing in the correct
+     order and using memory write barriers.  To avoid this we need some
+     sort of read barrier in the call stub, or use LD_BIND_NOW=1.  By
+     default, `ld' looks for calls to commonly used functions that
+     create threads, and if seen, adds the necessary barriers.  Use
+     these options to change the default behaviour.
 
 
 File: ld.info,  Node: SPU ELF,  Next: TI COFF,  Prev: PowerPC64 ELF64,  Up: Machine Dependent
@@ -7137,9 +7203,9 @@ LD Index
 * --eh-frame-hdr:                        Options.            (line 1499)
 * --emit-relocs:                         Options.            (line  476)
 * --emit-stack-syms:                     SPU ELF.            (line   46)
-* --emit-stub-syms <1>:                  SPU ELF.            (line   15)
+* --emit-stub-syms <1>:                  PowerPC64 ELF64.    (line   29)
 * --emit-stub-syms <2>:                  PowerPC ELF32.      (line   47)
-* --emit-stub-syms:                      PowerPC64 ELF64.    (line   29)
+* --emit-stub-syms:                      SPU ELF.            (line   15)
 * --enable-auto-image-base:              Options.            (line 1759)
 * --enable-auto-import:                  Options.            (line 1782)
 * --enable-extra-pe-debug:               Options.            (line 1920)
@@ -7214,17 +7280,21 @@ LD Index
 * --no-isolation:                        Options.            (line 1963)
 * --no-keep-memory:                      Options.            (line  974)
 * --no-leading-underscore:               Options.            (line 1638)
-* --no-merge-exidx-entries <1>:          Options.            (line 1999)
-* --no-merge-exidx-entries:              i960.               (line   48)
+* --no-merge-exidx-entries <1>:          i960.               (line   48)
+* --no-merge-exidx-entries:              Options.            (line 1999)
 * --no-multi-toc:                        PowerPC64 ELF64.    (line   74)
 * --no-omagic:                           Options.            (line  454)
 * --no-opd-optimize:                     PowerPC64 ELF64.    (line   48)
 * --no-overlays:                         SPU ELF.            (line    9)
+* --no-plt-align:                        PowerPC64 ELF64.    (line   96)
+* --no-plt-static-chain:                 PowerPC64 ELF64.    (line  103)
+* --no-plt-thread-safe:                  PowerPC64 ELF64.    (line  109)
 * --no-print-gc-sections:                Options.            (line  947)
 * --no-seh:                              Options.            (line 1966)
-* --no-tls-optimize <1>:                 PowerPC ELF32.      (line   51)
-* --no-tls-optimize:                     PowerPC64 ELF64.    (line   43)
+* --no-tls-optimize <1>:                 PowerPC64 ELF64.    (line   43)
+* --no-tls-optimize:                     PowerPC ELF32.      (line   51)
 * --no-toc-optimize:                     PowerPC64 ELF64.    (line   60)
+* --no-toc-sort:                         PowerPC64 ELF64.    (line   86)
 * --no-trampoline:                       Options.            (line 2009)
 * --no-undefined:                        Options.            (line  981)
 * --no-undefined-version:                Options.            (line 1023)
@@ -7242,6 +7312,9 @@ LD Index
 * --output=OUTPUT:                       Options.            (line  460)
 * --pic-executable:                      Options.            (line 1078)
 * --pic-veneer:                          ARM.                (line  133)
+* --plt-align:                           PowerPC64 ELF64.    (line   96)
+* --plt-static-chain:                    PowerPC64 ELF64.    (line  103)
+* --plt-thread-safe:                     PowerPC64 ELF64.    (line  109)
 * --plugin:                              SPU ELF.            (line    6)
 * --print-gc-sections:                   Options.            (line  947)
 * --print-map:                           Options.            (line  402)
@@ -7325,8 +7398,8 @@ LD Index
 * -e ENTRY:                              Options.            (line  187)
 * -EB:                                   Options.            (line  248)
 * -EL:                                   Options.            (line  251)
-* -F NAME:                               Options.            (line  276)
 * -f NAME:                               Options.            (line  255)
+* -F NAME:                               Options.            (line  276)
 * -fini=NAME:                            Options.            (line  300)
 * -g:                                    Options.            (line  306)
 * -G VALUE:                              Options.            (line  309)
@@ -7339,8 +7412,8 @@ LD Index
 * -M:                                    Options.            (line  402)
 * -m EMULATION:                          Options.            (line  392)
 * -Map=MAPFILE:                          Options.            (line  970)
-* -n:                                    Options.            (line  439)
 * -N:                                    Options.            (line  445)
+* -n:                                    Options.            (line  439)
 * -no-relax:                             Options.            (line 1094)
 * -non_shared:                           Options.            (line  765)
 * -nostdlib:                             Options.            (line 1059)
@@ -7355,8 +7428,8 @@ LD Index
 * -R FILE:                               Options.            (line  508)
 * -rpath-link=DIR:                       Options.            (line 1156)
 * -rpath=DIR:                            Options.            (line 1134)
-* -s:                                    Options.            (line  519)
 * -S:                                    Options.            (line  523)
+* -s:                                    Options.            (line  519)
 * -shared:                               Options.            (line 1211)
 * -soname=NAME:                          Options.            (line  317)
 * -static:                               Options.            (line  765)
@@ -7548,6 +7621,7 @@ LD Index
 * header size:                           Builtin Functions.  (line  183)
 * heap size:                             Options.            (line 1684)
 * help:                                  Options.            (line  962)
+* HIDDEN:                                HIDDEN.             (line    6)
 * holes:                                 Location Counter.   (line   12)
 * holes, filling:                        Output Section Data.
                                                              (line   39)
@@ -7661,7 +7735,7 @@ LD Index
 * object files:                          Options.            (line   29)
 * object formats available:              BFD.                (line    6)
 * object size:                           Options.            (line  309)
-* OMAGIC:                                Options.            (line  445)
+* OMAGIC:                                Options.            (line  454)
 * ONLY_IF_RO:                            Output Section Constraint.
                                                              (line    6)
 * ONLY_IF_RW:                            Output Section Constraint.
@@ -7694,7 +7768,7 @@ LD Index
                                                              (line    6)
 * partial link:                          Options.            (line  489)
 * PE import table prefixing:             ARM.                (line   23)
-* PHDRS:                                 PHDRS.              (line    6)
+* PHDRS:                                 PHDRS.              (line   62)
 * PIC_VENEER:                            ARM.                (line  133)
 * position independent executables:      Options.            (line 1080)
 * PowerPC ELF32 options:                 PowerPC ELF32.      (line   16)
@@ -7708,10 +7782,14 @@ LD Index
 * PowerPC64 multi-TOC:                   PowerPC64 ELF64.    (line   74)
 * PowerPC64 OPD optimization:            PowerPC64 ELF64.    (line   48)
 * PowerPC64 OPD spacing:                 PowerPC64 ELF64.    (line   54)
+* PowerPC64 PLT call stub static chain:  PowerPC64 ELF64.    (line  103)
+* PowerPC64 PLT call stub thread safety: PowerPC64 ELF64.    (line  109)
+* PowerPC64 PLT stub alignment:          PowerPC64 ELF64.    (line   96)
 * PowerPC64 stub grouping:               PowerPC64 ELF64.    (line    6)
 * PowerPC64 stub symbols:                PowerPC64 ELF64.    (line   29)
 * PowerPC64 TLS optimization:            PowerPC64 ELF64.    (line   43)
 * PowerPC64 TOC optimization:            PowerPC64 ELF64.    (line   60)
+* PowerPC64 TOC sorting:                 PowerPC64 ELF64.    (line   86)
 * precedence in expressions:             Operators.          (line    6)
 * prevent unnecessary loading:           Output Section Type.
                                                              (line   22)
@@ -7755,7 +7833,7 @@ LD Index
 * scaled integers:                       Constants.          (line   15)
 * scommon section:                       Input Section Common.
                                                              (line   20)
-* script files:                          Options.            (line  532)
+* script files:                          Options.            (line  541)
 * scripts:                               Scripts.            (line    6)
 * search directory, from cmd line:       Options.            (line  368)
 * search path in linker script:          File Commands.      (line   74)
@@ -7802,7 +7880,9 @@ LD Index
                                                              (line   58)
 * SORT_BY_NAME:                          Input Section Wildcards.
                                                              (line   46)
-* SPU:                                   SPU ELF.            (line   29)
+* SORT_NONE:                             Input Section Wildcards.
+                                                             (line  104)
+* SPU:                                   SPU ELF.            (line   46)
 * SPU ELF options:                       SPU ELF.            (line    6)
 * SPU extra overlay stubs:               SPU ELF.            (line   19)
 * SPU local store size:                  SPU ELF.            (line   24)
@@ -7878,87 +7958,88 @@ LD Index
 
 
 Tag Table:
-Node: Top816
-Node: Overview1602
-Node: Invocation2716
-Node: Options3124
-Node: Environment94796
-Node: Scripts96556
-Node: Basic Script Concepts98290
-Node: Script Format100997
-Node: Simple Example101860
-Node: Simple Commands104956
-Node: Entry Point105462
-Node: File Commands106395
-Node: Format Commands110396
-Node: REGION_ALIAS112352
-Node: Miscellaneous Commands117184
-Node: Assignments120792
-Node: Simple Assignments121283
-Node: PROVIDE123019
-Node: PROVIDE_HIDDEN124224
-Node: Source Code Reference124468
-Node: SECTIONS128048
-Node: Output Section Description129939
-Node: Output Section Name131026
-Node: Output Section Address131902
-Node: Input Section134137
-Node: Input Section Basics134938
-Node: Input Section Wildcards138844
-Node: Input Section Common143844
-Node: Input Section Keep145326
-Node: Input Section Example145816
-Node: Output Section Data146784
-Node: Output Section Keywords149561
-Node: Output Section Discarding153130
-Node: Output Section Attributes154311
-Node: Output Section Type155412
-Node: Output Section LMA156483
-Node: Forced Output Alignment159554
-Node: Forced Input Alignment159822
-Node: Output Section Constraint160211
-Node: Output Section Region160639
-Node: Output Section Phdr161072
-Node: Output Section Fill161736
-Node: Overlay Description162878
-Node: MEMORY167181
-Node: PHDRS171516
-Node: VERSION176770
-Node: Expressions184863
-Node: Constants185792
-Node: Symbolic Constants186667
-Node: Symbols187218
-Node: Orphan Sections187965
-Node: Location Counter189129
-Node: Operators193565
-Node: Evaluation194487
-Node: Expression Section195851
-Node: Builtin Functions199508
-Node: Implicit Linker Scripts207469
-Node: Machine Dependent208244
-Node: H8/300209260
-Node: i960210885
-Node: M68HC11/68HC12213089
-Node: ARM214543
-Node: HPPA ELF32222506
-Node: M68K224129
-Node: MMIX225038
-Node: MSP430226203
-Node: PowerPC ELF32227252
-Node: PowerPC64 ELF64230088
-Node: SPU ELF234504
-Node: TI COFF237136
-Node: WIN32237662
-Node: Xtensa257787
-Node: BFD260752
-Node: BFD outline262207
-Node: BFD information loss263493
-Node: Canonical format266010
-Node: Reporting Bugs270367
-Node: Bug Criteria271061
-Node: Bug Reporting271760
-Node: MRI278799
-Node: GNU Free Documentation License283442
-Node: LD Index308598
+Node: Top813
+Node: Overview1596
+Node: Invocation2710
+Node: Options3118
+Node: Environment94790
+Node: Scripts96550
+Node: Basic Script Concepts98284
+Node: Script Format100991
+Node: Simple Example101854
+Node: Simple Commands104950
+Node: Entry Point105456
+Node: File Commands106389
+Node: Format Commands110390
+Node: REGION_ALIAS112346
+Node: Miscellaneous Commands117178
+Node: Assignments120786
+Node: Simple Assignments121297
+Node: HIDDEN123032
+Node: PROVIDE123662
+Node: PROVIDE_HIDDEN124855
+Node: Source Code Reference125099
+Node: SECTIONS128679
+Node: Output Section Description130570
+Node: Output Section Name131657
+Node: Output Section Address132533
+Node: Input Section134768
+Node: Input Section Basics135569
+Node: Input Section Wildcards139475
+Node: Input Section Common144569
+Node: Input Section Keep146051
+Node: Input Section Example146541
+Node: Output Section Data147509
+Node: Output Section Keywords150286
+Node: Output Section Discarding153855
+Node: Output Section Attributes155036
+Node: Output Section Type156137
+Node: Output Section LMA157208
+Node: Forced Output Alignment160279
+Node: Forced Input Alignment160547
+Node: Output Section Constraint160936
+Node: Output Section Region161364
+Node: Output Section Phdr161797
+Node: Output Section Fill162461
+Node: Overlay Description163603
+Node: MEMORY167906
+Node: PHDRS172241
+Node: VERSION177495
+Node: Expressions185588
+Node: Constants186517
+Node: Symbolic Constants187392
+Node: Symbols187943
+Node: Orphan Sections188690
+Node: Location Counter189855
+Node: Operators194291
+Node: Evaluation195213
+Node: Expression Section196577
+Node: Builtin Functions200234
+Node: Implicit Linker Scripts208195
+Node: Machine Dependent208970
+Node: H8/300209986
+Node: i960211611
+Node: M68HC11/68HC12213815
+Node: ARM215269
+Node: HPPA ELF32223232
+Node: M68K224855
+Node: MMIX225764
+Node: MSP430226929
+Node: PowerPC ELF32227978
+Node: PowerPC64 ELF64230814
+Node: SPU ELF236970
+Node: TI COFF239602
+Node: WIN32240128
+Node: Xtensa260253
+Node: BFD263218
+Node: BFD outline264673
+Node: BFD information loss265959
+Node: Canonical format268476
+Node: Reporting Bugs272833
+Node: Bug Criteria273527
+Node: Bug Reporting274226
+Node: MRI281265
+Node: GNU Free Documentation License285908
+Node: LD Index311064
 
 End Tag Table
